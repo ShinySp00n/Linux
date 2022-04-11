@@ -1,0 +1,51 @@
+#! /bin/bash
+
+#Check if sudo was used
+if [ $UID != 0 ]
+then
+        echo "You are not the root user" >&2
+        exit 1
+fi
+
+#Check syntax
+if [ ${#} = 0 ]
+then
+	echo "Wrong syntax, enter with this formular" >&2
+	echo "sudo ${0} USERNAME COMMENT" >&2
+	exit 1
+fi
+
+#Generate random password
+UNAME=${1}
+PWORD=$(openssl rand -base64 48 | cut -c1-12)
+
+#Shift comment arguments into one line
+shift
+COMMENT=${@}
+
+#Add user and check if it is added successfully
+useradd -c "$COMMENT" -m "$UNAME" &> /dev/null
+
+if [ ${?} != 0 ]
+then
+	echo "User added unsuccessfully, error occured" >&2
+	exit 1
+fi
+
+#Create password and check if the password was created successfully
+(echo "$PWORD"; echo "$PWORD") | passwd "$UNAME" &>> /dev/null
+
+if [ ${?} != 0 ]
+then
+	echo "Password was created unsuccessfully, error occured" >&2
+	exit 1
+fi
+
+#Force password change
+passwd -e "$UNAME" &> /dev/null
+
+#Change user to bash shell
+chsh -s /bin/bash "$UNAME"
+
+#List username password and host
+printf "Username: $UNAME\nPassword: $PWORD\nHostname: ${HOSTNAME}\n"
